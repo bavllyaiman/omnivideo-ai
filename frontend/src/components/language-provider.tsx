@@ -25,7 +25,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       document.documentElement.lang = lang;
     },
     t: ar,
-    dir: language === 'ar' ? 'rtl' : 'ltr',
+    dir: (language === 'ar' ? 'rtl' : 'ltr') as 'rtl' | 'ltr',
   };
 
   return (
