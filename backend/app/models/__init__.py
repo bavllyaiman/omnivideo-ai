@@ -1,11 +1,3 @@
 from app.models.models import (
-    User, Project, Video, Job, Transcript, Translation,
-    Subtitle, Thumbnail, Short, Export, Payment,
-    Notification, AuditLog, SubscriptionTier, JobStatus, VideoStatus
+    User, Project, Video, Transcript, Translation, Subtitle, Export
 )
-
-__all__ = [
-    "User", "Project", "Video", "Job", "Transcript", "Translation",
-    "Subtitle", "Thumbnail", "Short", "Export", "Payment",
-    "Notification", "AuditLog", "SubscriptionTier", "JobStatus", "VideoStatus"
-]
