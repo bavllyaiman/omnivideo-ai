@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: omnivideo
+  labels:
+    app.kubernetes.io/name: omnivideo
+    app.kubernetes.io/part-of: omnivideo-ai
