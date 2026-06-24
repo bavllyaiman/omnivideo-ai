@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.models import User, Video, Project, Export
 
-router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+router = APIRouter(tags=["Dashboard"])
 
 
 @router.get("/stats")

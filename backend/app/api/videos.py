@@ -1,17 +1,30 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
+from pydantic import BaseModel
+from typing import Optional
 from uuid import uuid4
-from datetime import datetime
 from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.models import User, Video, Project
 
-router = APIRouter(prefix="/videos", tags=["Videos"])
+router = APIRouter(tags=["Videos"])
+
+
+class VideoUpload(BaseModel):
+    project_id: str
+    filename: str
+    file_size: Optional[int] = None
+    content_type: str = "video/mp4"
+
+
+class VideoImport(BaseModel):
+    project_id: str
+    url: str
 
 
 @router.get("")
-async def list_videos(project_id: str = None, page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_videos(project_id: Optional[str] = None, page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     offset = (page - 1) * per_page
     query = select(Video).where(Video.user_id == user.id)
     if project_id:
@@ -24,11 +37,11 @@ async def list_videos(project_id: str = None, page: int = Query(1, ge=1), per_pa
 
 
 @router.post("/upload")
-async def upload_video(project_id: str, filename: str, file_size: int = None, content_type: str = "video/mp4", user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    proj = (await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))).scalar_one_or_none()
+async def upload_video(data: VideoUpload, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    proj = (await db.execute(select(Project).where(Project.id == data.project_id, Project.user_id == user.id))).scalar_one_or_none()
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
-    video = Video(project_id=project_id, user_id=user.id, filename=filename, file_size=file_size, mime_type=content_type, status="uploaded")
+    video = Video(project_id=data.project_id, user_id=user.id, filename=data.filename, file_size=data.file_size, mime_type=data.content_type, status="uploaded")
     db.add(video)
     await db.flush()
     await db.refresh(video)
@@ -36,11 +49,11 @@ async def upload_video(project_id: str, filename: str, file_size: int = None, co
 
 
 @router.post("/import/url")
-async def import_url(project_id: str, url: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    proj = (await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))).scalar_one_or_none()
+async def import_url(data: VideoImport, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    proj = (await db.execute(select(Project).where(Project.id == data.project_id, Project.user_id == user.id))).scalar_one_or_none()
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
-    video = Video(project_id=project_id, user_id=user.id, filename=f"imported_{uuid4().hex[:8]}.mp4", source_type="url", source_url=url, status="processing")
+    video = Video(project_id=data.project_id, user_id=user.id, filename=f"imported_{uuid4().hex[:8]}.mp4", source_type="url", source_url=data.url, status="processing")
     db.add(video)
     await db.flush()
     await db.refresh(video)
@@ -65,10 +78,10 @@ async def analyze_video(video_id: str, user: User = Depends(get_current_user), d
     video.analysis = {
         "scenes": [{"timestamp": 0, "description": "Opening scene"}, {"timestamp": 30, "description": "Main content"}, {"timestamp": 120, "description": "Conclusion"}],
         "chapters": [{"start": 0, "end": 30, "title": "Introduction"}, {"start": 30, "end": 120, "title": "Main Content"}, {"start": 120, "end": 180, "title": "Conclusion"}],
-        "summary": "Video analyzed successfully. 3 scenes detected with clear chapter structure.",
-        "objects_detected": ["person", "background", "text overlay"],
-        "emotions": ["neutral", "engaged", "enthusiastic"],
-        "viral_moments": [{"timestamp": 45, "score": 0.85, "reason": "High engagement moment"}],
+        "summary": "Video analyzed successfully.",
+        "objects_detected": ["person", "background"],
+        "emotions": ["neutral", "engaged"],
+        "viral_moments": [{"timestamp": 45, "score": 0.85}],
     }
     video.status = "analyzed"
     await db.flush()
@@ -83,3 +96,12 @@ async def delete_video(video_id: str, user: User = Depends(get_current_user), db
         raise HTTPException(status_code=404, detail="Video not found")
     await db.delete(video)
     return {"status": "deleted"}
+
+
+@router.get("/{video_id}/jobs")
+async def get_video_jobs(video_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Video).where(Video.id == video_id, Video.user_id == user.id))
+    video = result.scalar_one_or_none()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    return []

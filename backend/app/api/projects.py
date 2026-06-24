@@ -1,12 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
-from uuid import uuid4
+from pydantic import BaseModel
+from typing import Optional
 from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.models import User, Project, Video
 
-router = APIRouter(prefix="/projects", tags=["Projects"])
+router = APIRouter(tags=["Projects"])
+
+
+class ProjectCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 
 @router.get("")
@@ -23,8 +34,8 @@ async def list_projects(page: int = Query(1, ge=1), per_page: int = Query(20, ge
 
 
 @router.post("")
-async def create_project(name: str, description: str = None, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    project = Project(user_id=user.id, name=name, description=description)
+async def create_project(data: ProjectCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    project = Project(user_id=user.id, name=data.name, description=data.description)
     db.add(project)
     await db.flush()
     await db.refresh(project)
@@ -42,13 +53,15 @@ async def get_project(project_id: str, user: User = Depends(get_current_user), d
 
 
 @router.put("/{project_id}")
-async def update_project(project_id: str, name: str = None, description: str = None, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_project(project_id: str, data: ProjectUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if name: project.name = name
-    if description: project.description = description
+    if data.name is not None:
+        project.name = data.name
+    if data.description is not None:
+        project.description = data.description
     await db.flush()
     return {"id": project.id, "name": project.name, "description": project.description}
 

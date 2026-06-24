@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.models import User, Video, Subtitle, Export
 
-router = APIRouter(prefix="/processing", tags=["Processing"])
+router = APIRouter(tags=["Processing"])
 
 
 @router.post("/{video_id}/subtitles")

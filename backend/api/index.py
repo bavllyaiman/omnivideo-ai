@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 _db_initialized = False
+_db_dropped = False
 
 
 def load_routes():

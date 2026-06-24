@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Text, Integer, Float,
+    Column, String, Boolean, DateTime, Text, Integer, Float, BigInteger,
     ForeignKey, JSON
 )
 from sqlalchemy.orm import relationship
@@ -28,8 +28,8 @@ class User(Base):
     subscription_tier = Column(String(20), default="free")
     credits_remaining = Column(Integer, default=100)
     credits_used_this_month = Column(Integer, default=0)
-    storage_used_bytes = Column(Integer, default=0)
-    storage_limit_bytes = Column(Integer, default=10737418240)
+    storage_used_bytes = Column(BigInteger, default=0)
+    storage_limit_bytes = Column(BigInteger, default=10737418240)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
@@ -58,7 +58,7 @@ class Video(Base):
     s3_key = Column(String(1000), nullable=True)
     status = Column(String(50), default="uploading")
     duration = Column(Float, nullable=True)
-    file_size = Column(Integer, nullable=True)
+    file_size = Column(BigInteger, nullable=True)
     mime_type = Column(String(100), nullable=True)
     resolution_width = Column(Integer, nullable=True)
     resolution_height = Column(Integer, nullable=True)

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel
+from typing import Optional
 from datetime import timedelta, datetime, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -9,9 +11,21 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.models import User
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(tags=["Authentication"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
 def hash_password(password: str) -> str:
@@ -52,11 +66,16 @@ async def get_current_user(
 
 
 @router.post("/register")
-async def register(email: str, password: str, username: str = None, full_name: str = None, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == email))
+async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=email, username=username, full_name=full_name, hashed_password=hash_password(password))
+    user = User(
+        email=data.email,
+        username=data.username,
+        full_name=data.full_name,
+        hashed_password=hash_password(data.password),
+    )
     db.add(user)
     await db.flush()
     await db.refresh(user)
@@ -64,24 +83,54 @@ async def register(email: str, password: str, username: str = None, full_name: s
         "access_token": create_token({"sub": user.id}),
         "refresh_token": create_token({"sub": user.id}, "refresh"),
         "token_type": "bearer",
-        "user": {"id": user.id, "email": user.email, "username": user.username, "full_name": user.full_name, "subscription_tier": user.subscription_tier, "credits_remaining": user.credits_remaining},
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "subscription_tier": user.subscription_tier,
+            "credits_remaining": user.credits_remaining,
+            "credits_used_this_month": user.credits_used_this_month,
+            "storage_used_bytes": user.storage_used_bytes,
+            "storage_limit_bytes": user.storage_limit_bytes,
+        },
     }
 
 
 @router.post("/login")
-async def login(email: str, password: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == email))
+async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(password, user.hashed_password):
+    if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {
         "access_token": create_token({"sub": user.id}),
         "refresh_token": create_token({"sub": user.id}, "refresh"),
         "token_type": "bearer",
-        "user": {"id": user.id, "email": user.email, "username": user.username, "full_name": user.full_name, "subscription_tier": user.subscription_tier, "credits_remaining": user.credits_remaining},
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "subscription_tier": user.subscription_tier,
+            "credits_remaining": user.credits_remaining,
+            "credits_used_this_month": user.credits_used_this_month,
+            "storage_used_bytes": user.storage_used_bytes,
+            "storage_limit_bytes": user.storage_limit_bytes,
+        },
     }
 
 
 @router.get("/me")
 async def get_me(user: User = Depends(get_current_user)):
-    return {"id": user.id, "email": user.email, "username": user.username, "full_name": user.full_name, "subscription_tier": user.subscription_tier, "credits_remaining": user.credits_remaining, "credits_used_this_month": user.credits_used_this_month, "storage_used_bytes": user.storage_used_bytes, "storage_limit_bytes": user.storage_limit_bytes}
+    return {
+        "id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "full_name": user.full_name,
+        "subscription_tier": user.subscription_tier,
+        "credits_remaining": user.credits_remaining,
+        "credits_used_this_month": user.credits_used_this_month,
+        "storage_used_bytes": user.storage_used_bytes,
+        "storage_limit_bytes": user.storage_limit_bytes,
+    }

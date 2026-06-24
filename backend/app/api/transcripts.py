@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.models import User, Video, Transcript, Translation
 
-router = APIRouter(prefix="/transcripts", tags=["Transcripts"])
+router = APIRouter(tags=["Transcripts"])
 
 
 @router.post("")
