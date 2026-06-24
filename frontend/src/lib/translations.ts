@@ -61,6 +61,7 @@ export const ar = {
     uploadVideo: "ارفع فيديو",
     quickActions: "إجراءات سريعة",
     viewAll: "عرض الكل",
+    noProjects: "لا توجد مشاريع بعد",
     videos: "فيديوهات",
     newProject: "مشروع جديد",
     billing: "الاشتراك",
