@@ -1,150 +1,87 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import timedelta
-from app.core.database import get_db
-from app.core.security import (
-    hash_password, verify_password, create_access_token,
-    create_refresh_token, decode_token, get_current_user
-)
+from datetime import timedelta, datetime, timezone
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
+from app.core.database import get_db
 from app.models.models import User
-from app.schemas.schemas import (
-    UserCreate, UserLogin, UserResponse, TokenResponse,
-    TokenRefresh, SubscriptionTier
-)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer(auto_error=False)
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(User).where(
-            (User.email == data.email) | (User.username == data.username)
-        )
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+
+def create_token(data: dict, token_type: str = "access") -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES if token_type == "access" else settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60
     )
+    to_encode.update({"exp": expire, "type": token_type})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
+):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+@router.post("/register")
+async def register(email: str, password: str, username: str = None, full_name: str = None, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email or username already registered"
-        )
-
-    user = User(
-        email=data.email,
-        username=data.username,
-        full_name=data.full_name,
-        hashed_password=hash_password(data.password),
-        subscription_tier=SubscriptionTier.FREE,
-        credits_remaining=100,
-    )
+        raise HTTPException(status_code=400, detail="Email already registered")
+    user = User(email=email, username=username, full_name=full_name, hashed_password=hash_password(password))
     db.add(user)
     await db.flush()
     await db.refresh(user)
-
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
-
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=UserResponse.model_validate(user),
-    )
+    return {
+        "access_token": create_token({"sub": user.id}),
+        "refresh_token": create_token({"sub": user.id}, "refresh"),
+        "token_type": "bearer",
+        "user": {"id": user.id, "email": user.email, "username": user.username, "full_name": user.full_name, "subscription_tier": user.subscription_tier, "credits_remaining": user.credits_remaining},
+    }
 
 
-@router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == data.email))
+@router.post("/login")
+async def login(email: str, password: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-
-    if not user or not verify_password(data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is deactivated"
-        )
-
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
-
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=UserResponse.model_validate(user),
-    )
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {
+        "access_token": create_token({"sub": user.id}),
+        "refresh_token": create_token({"sub": user.id}, "refresh"),
+        "token_type": "bearer",
+        "user": {"id": user.id, "email": user.email, "username": user.username, "full_name": user.full_name, "subscription_tier": user.subscription_tier, "credits_remaining": user.credits_remaining},
+    }
 
 
-@router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(data: TokenRefresh, db: AsyncSession = Depends(get_db)):
-    payload = decode_token(data.refresh_token)
-    if not payload or payload.get("type") != "refresh":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
-        )
-
-    user_id = payload.get("sub")
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
-
-    access_token = create_access_token(data={"sub": str(user.id)})
-    new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
-
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=new_refresh_token,
-        user=UserResponse.model_validate(user),
-    )
-
-
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
-    return UserResponse.model_validate(current_user)
-
-
-@router.put("/me", response_model=UserResponse)
-async def update_me(
-    full_name: str = None,
-    username: str = None,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    if full_name:
-        current_user.full_name = full_name
-    if username:
-        existing = await db.execute(select(User).where(User.username == username, User.id != current_user.id))
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Username already taken")
-        current_user.username = username
-
-    await db.flush()
-    await db.refresh(current_user)
-    return UserResponse.model_validate(current_user)
-
-
-@router.post("/oauth/google", response_model=TokenResponse)
-async def google_oauth(
-    code: str,
-    db: AsyncSession = Depends(get_db),
-):
-    raise HTTPException(status_code=501, detail="Google OAuth not configured")
-
-
-@router.post("/oauth/github", response_model=TokenResponse)
-async def github_oauth(
-    code: str,
-    db: AsyncSession = Depends(get_db),
-):
-    raise HTTPException(status_code=501, detail="GitHub OAuth not configured")
+@router.get("/me")
+async def get_me(user: User = Depends(get_current_user)):
+    return {"id": user.id, "email": user.email, "username": user.username, "full_name": user.full_name, "subscription_tier": user.subscription_tier, "credits_remaining": user.credits_remaining, "credits_used_this_month": user.credits_used_this_month, "storage_used_bytes": user.storage_used_bytes, "storage_limit_bytes": user.storage_limit_bytes}
