@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
+import { useLanguage } from '@/components/language-provider';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,30 +20,41 @@ import {
   Image,
 } from 'lucide-react';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/dashboard/upload', label: 'Upload', icon: Upload },
-  { href: '/dashboard/videos', label: 'Videos', icon: Video },
-  { href: '/dashboard/projects', label: 'Projects', icon: FolderOpen },
-  { href: '/dashboard/subtitles', label: 'Subtitles', icon: FileText },
-  { href: '/dashboard/translations', label: 'Translations', icon: Globe },
-  { href: '/dashboard/thumbnails', label: 'Thumbnails', icon: Image },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
+
+  const navItems = [
+    { href: '/dashboard', label: t.nav.dashboard, icon: Home },
+    { href: '/dashboard/upload', label: t.nav.upload, icon: Upload },
+    { href: '/dashboard/videos', label: t.nav.videos, icon: Video },
+    { href: '/dashboard/projects', label: t.nav.projects, icon: FolderOpen },
+    { href: '/dashboard/subtitles', label: t.nav.subtitles, icon: FileText },
+    { href: '/dashboard/translations', label: t.nav.translations, icon: Globe },
+    { href: '/dashboard/thumbnails', label: t.nav.thumbnails, icon: Image },
+    { href: '/dashboard/analytics', label: t.nav.analytics, icon: BarChart3 },
+    { href: '/dashboard/billing', label: t.nav.billing, icon: CreditCard },
+    { href: '/dashboard/settings', label: t.nav.settings, icon: Settings },
+  ];
 
   return (
-    <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-64 bg-white border-l border-gray-200 flex flex-col" style={{ direction: 'rtl' }}>
       <div className="p-6 border-b border-gray-200">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Video className="h-8 w-8 text-purple-600" />
           <span className="text-xl font-bold">OmniVideo AI</span>
         </Link>
+      </div>
+
+      <div className="px-4 pt-2">
+        <button
+          onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"
+        >
+          <Globe className="h-4 w-4" />
+          {language === 'ar' ? 'English' : 'العربية'}
+        </button>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
@@ -85,8 +97,8 @@ export default function Sidebar() {
           className="w-full justify-start text-gray-600"
           onClick={logout}
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign Out
+          <LogOut className="ml-2 h-4 w-4" />
+          {t.nav.signOut}
         </Button>
       </div>
     </div>

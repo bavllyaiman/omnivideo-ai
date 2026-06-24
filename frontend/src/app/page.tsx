@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
+import { useLanguage } from '@/components/language-provider';
 import { Video, Zap, Globe, ArrowRight } from 'lucide-react';
 
 export default function Home() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -19,17 +21,17 @@ export default function Home() {
           <div className="flex items-center gap-4">
             {user ? (
               <Link href="/dashboard">
-                <Button>Dashboard</Button>
+                <Button>{t.nav.dashboard}</Button>
               </Link>
             ) : (
               <>
                 <Link href="/login">
                   <Button variant="ghost" className="text-white">
-                    Login
+                    {t.auth.login}
                   </Button>
                 </Link>
                 <Link href="/register">
-                  <Button>Get Started</Button>
+                  <Button>{t.auth.register}</Button>
                 </Link>
               </>
             )}
@@ -40,17 +42,16 @@ export default function Home() {
       <main className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-6xl font-bold text-white mb-6">
-            AI-Powered Video Editing
+            {t.home.title}
           </h1>
           <p className="text-xl text-gray-300 mb-10">
-            Transform your videos with intelligent AI agents. Upload, analyze, edit,
-            translate, and export professional-quality content automatically.
+            {t.home.subtitle}
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link href="/register">
               <Button size="lg" className="text-lg px-8">
-                Start Free Trial
-                <ArrowRight className="ml-2 h-5 w-5" />
+                {t.home.getStarted}
+                <ArrowRight className="mr-2 h-5 w-5" />
               </Button>
             </Link>
           </div>
@@ -60,31 +61,28 @@ export default function Home() {
           <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20">
             <Zap className="h-12 w-12 text-purple-400 mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">
-              Multi-Agent AI
+              {t.home.multiAgent}
             </h3>
             <p className="text-gray-300">
-              9 specialized AI agents work together to understand, analyze, and
-              enhance your videos automatically.
+              {t.home.multiAgentDesc}
             </p>
           </div>
           <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20">
             <Globe className="h-12 w-12 text-purple-400 mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">
-              100+ Languages
+              {t.home.languages}
             </h3>
             <p className="text-gray-300">
-              Translate your content into over 100 languages with context-aware
-              AI translation and subtitle generation.
+              {t.home.languagesDesc}
             </p>
           </div>
           <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20">
             <Video className="h-12 w-12 text-purple-400 mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">
-              Auto-Repurpose
+              {t.home.repurpose}
             </h3>
             <p className="text-gray-300">
-              Automatically convert your videos into blog posts, social media
-              content, newsletters, and more.
+              {t.home.repurposeDesc}
             </p>
           </div>
         </div>

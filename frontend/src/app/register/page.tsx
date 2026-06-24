@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
+import { useLanguage } from '@/components/language-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,16 +16,16 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
-  const router = useRouter();
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await register(email, password, username);
-      toast.success('Account created!');
+      toast.success(t.common.success);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Registration failed');
+      toast.error(error.response?.data?.detail || t.auth.registerFailed);
     } finally {
       setLoading(false);
     }
@@ -39,13 +39,13 @@ export default function RegisterPage() {
             <Video className="h-8 w-8 text-purple-600" />
             <span className="text-2xl font-bold">OmniVideo AI</span>
           </div>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Get started with your free trial</CardDescription>
+          <CardTitle>{t.auth.createAccount}</CardTitle>
+          <CardDescription>{t.auth.startFree}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <label className="text-sm font-medium">{t.auth.email}</label>
               <Input
                 type="email"
                 placeholder="you@example.com"
@@ -55,7 +55,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Username</label>
+              <label className="text-sm font-medium">{t.auth.username}</label>
               <Input
                 type="text"
                 placeholder="johndoe"
@@ -64,7 +64,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
+              <label className="text-sm font-medium">{t.auth.password}</label>
               <Input
                 type="password"
                 placeholder="••••••••"
@@ -75,13 +75,13 @@ export default function RegisterPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? t.auth.creatingAccount : t.auth.register}
             </Button>
           </form>
           <div className="mt-6 text-center text-sm">
-            Already have an account?{' '}
+            {t.auth.hasAccount}{' '}
             <Link href="/login" className="text-purple-600 hover:underline">
-              Sign in
+              {t.auth.login}
             </Link>
           </div>
         </CardContent>

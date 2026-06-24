@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
+import { useLanguage } from '@/components/language-provider';
 import { api } from '@/lib/api';
-import { formatFileSize, getStatusColor, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,52 +15,22 @@ import {
   Video,
   Upload,
   FolderOpen,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Plus,
+  BarChart3,
   Settings,
   CreditCard,
-  BarChart3,
-  Bell,
-  Search,
+  Plus,
   ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
-interface DashboardStats {
-  total_videos: number;
-  total_projects: number;
-  total_processing_hours: number;
-  total_exports: number;
-  credits_used: number;
-  credits_remaining: number;
-}
-
-interface VideoItem {
-  id: string;
-  filename: string;
-  status: string;
-  duration?: number;
-  file_size?: number;
-  thumbnail_url?: string;
-  created_at: string;
-}
-
-interface ProjectItem {
-  id: string;
-  name: string;
-  video_count: number;
-  created_at: string;
-}
-
 export default function DashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [videos, setVideos] = useState<VideoItem[]>([]);
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [videos, setVideos] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -67,10 +38,7 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
-
-    if (user) {
-      fetchData();
-    }
+    if (user) fetchData();
   }, [user, authLoading]);
 
   const fetchData = async () => {
@@ -81,10 +49,10 @@ export default function DashboardPage() {
         api.get('/projects?per_page=5'),
       ]);
       setStats(statsRes.data);
-      setVideos(videosRes.data.items);
-      setProjects(projectsRes.data.items);
-    } catch (error) {
-      toast.error('Failed to load dashboard data');
+      setVideos(videosRes.data.items || []);
+      setProjects(projectsRes.data.items || []);
+    } catch {
+      toast.error(t.common.error);
     } finally {
       setLoading(false);
     }
@@ -95,7 +63,7 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          <p className="mt-4 text-gray-600">{t.common.loading}</p>
         </div>
       </div>
     );
@@ -104,18 +72,16 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64 p-8">
+      <div className="mr-64 p-8" style={{ direction: 'rtl' }}>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back, {user?.full_name || user?.email}</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t.nav.dashboard}</h1>
+          <p className="text-gray-600 mt-1">{t.dashboard.welcome} {user?.full_name || user?.email}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Total Videos
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{t.dashboard.totalVideos}</CardTitle>
               <Video className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
@@ -124,9 +90,7 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Projects
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{t.dashboard.projects}</CardTitle>
               <FolderOpen className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
@@ -135,25 +99,18 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Credits Used
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{t.dashboard.creditsUsed}</CardTitle>
               <BarChart3 className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.credits_used || 0}</div>
-              <Progress
-                value={((stats?.credits_used || 0) / ((stats?.credits_used || 0) + (stats?.credits_remaining || 1))) * 100}
-                className="mt-2"
-              />
+              <Progress value={((stats?.credits_used || 0) / ((stats?.credits_used || 0) + (stats?.credits_remaining || 1))) * 100} className="mt-2" />
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Exports
-              </CardTitle>
-              <CheckCircle className="h-4 w-4 text-gray-400" />
+              <CardTitle className="text-sm font-medium text-gray-600">{t.dashboard.exports}</CardTitle>
+              <CreditCard className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.total_exports || 0}</div>
@@ -165,12 +122,11 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Recent Videos</CardTitle>
-                <CardDescription>Your latest uploads</CardDescription>
+                <CardTitle>{t.dashboard.recentVideos}</CardTitle>
               </div>
               <Link href="/dashboard/videos">
                 <Button variant="ghost" size="sm">
-                  View All <ChevronRight className="ml-1 h-4 w-4" />
+                  {t.dashboard.viewAll} <ChevronRight className="mr-1 h-4 w-4" />
                 </Button>
               </Link>
             </CardHeader>
@@ -178,10 +134,10 @@ export default function DashboardPage() {
               {videos.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Video className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No videos yet</p>
+                  <p>{t.dashboard.noVideos}</p>
                   <Link href="/dashboard/upload">
                     <Button className="mt-4" size="sm">
-                      <Upload className="mr-2 h-4 w-4" /> Upload Video
+                      <Upload className="ml-2 h-4 w-4" /> {t.dashboard.uploadVideo}
                     </Button>
                   </Link>
                 </div>
@@ -199,12 +155,10 @@ export default function DashboardPage() {
                         </div>
                         <div>
                           <p className="font-medium text-sm">{video.filename}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatDate(video.created_at)}
-                          </p>
+                          <p className="text-xs text-gray-500">{formatDate(video.created_at)}</p>
                         </div>
                       </div>
-                      <Badge className={getStatusColor(video.status)}>
+                      <Badge className={video.status === 'completed' ? 'bg-green-100 text-green-800' : video.status === 'processing' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}>
                         {video.status}
                       </Badge>
                     </div>
@@ -217,12 +171,11 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Projects</CardTitle>
-                <CardDescription>Your video projects</CardDescription>
+                <CardTitle>{t.dashboard.projects}</CardTitle>
               </div>
               <Link href="/dashboard/projects">
                 <Button variant="ghost" size="sm">
-                  View All <ChevronRight className="ml-1 h-4 w-4" />
+                  {t.dashboard.viewAll} <ChevronRight className="mr-1 h-4 w-4" />
                 </Button>
               </Link>
             </CardHeader>
@@ -230,10 +183,10 @@ export default function DashboardPage() {
               {projects.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No projects yet</p>
-                  <Link href="/dashboard/projects/new">
+                  <p>{t.dashboard.noProjects}</p>
+                  <Link href="/dashboard/projects">
                     <Button className="mt-4" size="sm">
-                      <Plus className="mr-2 h-4 w-4" /> Create Project
+                      <Plus className="ml-2 h-4 w-4" /> {t.dashboard.newProject}
                     </Button>
                   </Link>
                 </div>
@@ -252,7 +205,7 @@ export default function DashboardPage() {
                         <div>
                           <p className="font-medium text-sm">{project.name}</p>
                           <p className="text-xs text-gray-500">
-                            {project.video_count} videos • {formatDate(project.created_at)}
+                            {project.video_count} {t.dashboard.videos} • {formatDate(project.created_at)}
                           </p>
                         </div>
                       </div>
@@ -267,33 +220,32 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Get started with common tasks</CardDescription>
+            <CardTitle>{t.dashboard.quickActions}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Link href="/dashboard/upload">
                 <Button variant="outline" className="w-full h-24 flex flex-col items-center justify-center gap-2">
                   <Upload className="h-6 w-6" />
-                  <span>Upload Video</span>
+                  <span>{t.nav.upload}</span>
                 </Button>
               </Link>
-              <Link href="/dashboard/projects/new">
+              <Link href="/dashboard/projects">
                 <Button variant="outline" className="w-full h-24 flex flex-col items-center justify-center gap-2">
                   <Plus className="h-6 w-6" />
-                  <span>New Project</span>
+                  <span>{t.dashboard.newProject}</span>
                 </Button>
               </Link>
               <Link href="/dashboard/billing">
                 <Button variant="outline" className="w-full h-24 flex flex-col items-center justify-center gap-2">
                   <CreditCard className="h-6 w-6" />
-                  <span>Billing</span>
+                  <span>{t.nav.billing}</span>
                 </Button>
               </Link>
               <Link href="/dashboard/settings">
                 <Button variant="outline" className="w-full h-24 flex flex-col items-center justify-center gap-2">
                   <Settings className="h-6 w-6" />
-                  <span>Settings</span>
+                  <span>{t.nav.settings}</span>
                 </Button>
               </Link>
             </div>

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
+import { useLanguage } from '@/components/language-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,16 +15,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const router = useRouter();
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await login(email, password);
-      toast.success('Welcome back!');
+      toast.success(t.common.success);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Login failed');
+      toast.error(error.response?.data?.detail || t.auth.loginFailed);
     } finally {
       setLoading(false);
     }
@@ -38,13 +38,13 @@ export default function LoginPage() {
             <Video className="h-8 w-8 text-purple-600" />
             <span className="text-2xl font-bold">OmniVideo AI</span>
           </div>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardTitle>{t.auth.welcomeBack}</CardTitle>
+          <CardDescription>{t.auth.login}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <label className="text-sm font-medium">{t.auth.email}</label>
               <Input
                 type="email"
                 placeholder="you@example.com"
@@ -54,7 +54,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
+              <label className="text-sm font-medium">{t.auth.password}</label>
               <Input
                 type="password"
                 placeholder="••••••••"
@@ -64,13 +64,13 @@ export default function LoginPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? t.auth.signingIn : t.auth.login}
             </Button>
           </form>
           <div className="mt-6 text-center text-sm">
-            Don&apos;t have an account?{' '}
+            {t.auth.noAccount}{' '}
             <Link href="/register" className="text-purple-600 hover:underline">
-              Sign up
+              {t.auth.register}
             </Link>
           </div>
         </CardContent>
