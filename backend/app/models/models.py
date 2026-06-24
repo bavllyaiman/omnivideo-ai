@@ -21,7 +21,7 @@ class User(Base):
     id = Column(String(36), primary_key=True, default=gen_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
     username = Column(String(100), unique=True, nullable=True)
-    hashed_password = Column(String(255), nullable=True)
+    hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
     avatar_url = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -56,13 +56,14 @@ class Video(Base):
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     filename = Column(String(500), nullable=False)
     s3_key = Column(String(1000), nullable=True)
-    status = Column(String(50), default="uploaded")
+    status = Column(String(50), default="uploading")
     duration = Column(Float, nullable=True)
     file_size = Column(Integer, nullable=True)
     mime_type = Column(String(100), nullable=True)
     resolution_width = Column(Integer, nullable=True)
     resolution_height = Column(Integer, nullable=True)
     fps = Column(Float, nullable=True)
+    codec = Column(String(50), nullable=True)
     source_type = Column(String(50), default="upload")
     source_url = Column(Text, nullable=True)
     thumbnail_url = Column(Text, nullable=True)
@@ -73,6 +74,7 @@ class Video(Base):
     project = relationship("Project", back_populates="videos")
     transcript = relationship("Transcript", back_populates="video", uselist=False, cascade="all, delete-orphan")
     subtitles = relationship("Subtitle", back_populates="video", cascade="all, delete-orphan")
+    exports = relationship("Export", back_populates="video", cascade="all, delete-orphan")
 
 
 class Transcript(Base):
@@ -121,7 +123,24 @@ class Export(Base):
     video_id = Column(String(36), ForeignKey("videos.id", ondelete="SET NULL"), nullable=True)
     format = Column(String(50), default="mp4")
     resolution = Column(String(20), default="1080p")
+    quality = Column(String(20), default="high")
     status = Column(String(50), default="pending")
     s3_key = Column(String(1000), nullable=True)
     file_size = Column(Integer, nullable=True)
+    download_url = Column(Text, nullable=True)
+    settings = Column(JSON, default={})
     created_at = Column(DateTime(timezone=True), default=utcnow)
+    video = relationship("Video", back_populates="exports")
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    video_id = Column(String(36), ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
+    task_type = Column(String(100), nullable=False)
+    status = Column(String(50), default="pending")
+    progress = Column(Float, default=0.0)
+    result = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    completed_at = Column(DateTime(timezone=True), nullable=True)

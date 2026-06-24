@@ -1,0 +1,15 @@
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - AWS_S3_ENDPOINT_URL=${AWS_S3_ENDPOINT_URL}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-omnivideo}
+      - AWS_S3_REGION=${AWS_S3_REGION:-auto}
+      - API_URL=${API_URL:-https://backend-black-three-69.vercel.app}
+    restart: unless-stopped

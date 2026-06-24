@@ -8,90 +8,62 @@ from app.core.config import settings
 
 class StorageService:
     def __init__(self):
-        self.use_r2 = settings.CLOUDFLARE_R2_ACCOUNT_ID is not None
-        if self.use_r2:
+        endpoint = settings.AWS_S3_ENDPOINT_URL
+        if endpoint:
             self.client = boto3.client(
                 "s3",
-                endpoint_url=settings.CLOUDFLARE_R2_ENDPOINT,
-                aws_access_key_id=settings.CLOUDFLARE_R2_ACCESS_KEY,
-                aws_secret_access_key=settings.CLOUDFLARE_R2_SECRET_KEY,
-                config=Config(signature_version="s3v4"),
-                region_name="auto",
-            )
-            self.bucket = settings.CLOUDFLARE_R2_BUCKET
-        else:
-            self.client = boto3.client(
-                "s3",
-                endpoint_url=settings.S3_ENDPOINT_URL,
+                endpoint_url=endpoint,
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_S3_REGION,
                 config=Config(signature_version="s3v4"),
+                region_name=settings.AWS_S3_REGION,
             )
-            self.bucket = settings.AWS_S3_BUCKET
+        else:
+            self.client = None
+        self.bucket = settings.AWS_S3_BUCKET
 
-    async def upload_file(
-        self,
-        file: BinaryIO,
-        key: str,
-        content_type: str = "video/mp4",
-        metadata: Optional[dict] = None,
-    ) -> str:
-        extra_args = {"ContentType": content_type}
-        if metadata:
-            extra_args["Metadata"] = metadata
+    def _get_client(self):
+        if not self.client:
+            raise Exception("Storage not configured. Set AWS_S3_ENDPOINT_URL in env.")
+        return self.client
 
-        self.client.upload_fileobj(file, self.bucket, key, ExtraArgs=extra_args)
+    async def upload_file(self, file: BinaryIO, key: str, content_type: str = "video/mp4") -> str:
+        client = self._get_client()
+        client.upload_fileobj(file, self.bucket, key, ExtraArgs={"ContentType": content_type})
         return key
 
-    async def generate_presigned_url(
-        self,
-        key: str,
-        expiration: int = 3600,
-        method: str = "get_object",
-    ) -> str:
-        return self.client.generate_presigned_url(
-            method,
+    async def generate_presigned_url(self, key: str, expiration: int = 3600) -> str:
+        client = self._get_client()
+        return client.generate_presigned_url(
+            "get_object",
             Params={"Bucket": self.bucket, "Key": key},
             ExpiresIn=expiration,
         )
 
-    async def generate_upload_url(
-        self,
-        filename: str,
-        content_type: str = "video/mp4",
-        expiration: int = 3600,
-    ) -> tuple[str, str]:
+    async def generate_upload_url(self, filename: str, content_type: str = "video/mp4", expiration: int = 3600) -> tuple:
+        client = self._get_client()
         ext = filename.rsplit(".", 1)[-1] if "." in filename else "mp4"
         date_prefix = datetime.utcnow().strftime("%Y/%m/%d")
-        unique_id = str(uuid.uuid4())
-        key = f"uploads/{date_prefix}/{unique_id}.{ext}"
-
-        presigned_url = self.client.generate_presigned_url(
+        key = f"uploads/{date_prefix}/{uuid.uuid4()}.{ext}"
+        url = client.generate_presigned_url(
             "put_object",
-            Params={
-                "Bucket": self.bucket,
-                "Key": key,
-                "ContentType": content_type,
-            },
+            Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
             ExpiresIn=expiration,
         )
-        return presigned_url, key
+        return url, key
 
     async def delete_file(self, key: str) -> bool:
         try:
-            self.client.delete_object(Bucket=self.bucket, Key=key)
+            client = self._get_client()
+            client.delete_object(Bucket=self.bucket, Key=key)
             return True
         except Exception:
             return False
 
-    async def copy_file(self, source_key: str, dest_key: str) -> str:
-        self.client.copy_object(
-            Bucket=self.bucket,
-            CopySource=f"{self.bucket}/{source_key}",
-            Key=dest_key,
-        )
-        return dest_key
+    async def download_file(self, key: str, local_path: str) -> str:
+        client = self._get_client()
+        client.download_file(self.bucket, key, local_path)
+        return local_path
 
 
 storage = StorageService()

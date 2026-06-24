@@ -2,12 +2,18 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import DeclarativeBase
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite://")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/omnivideo"
+)
 
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
+    connect_args={"ssl": "require"} if "neon" in DATABASE_URL or "supabase" in DATABASE_URL else {},
 )
 
 async_session_factory = async_sessionmaker(
